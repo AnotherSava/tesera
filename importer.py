@@ -21,7 +21,7 @@ FILE_NAME_BACKUP = 'data.backup.csv'
 ENCODING = 'utf-16'
 
 
-def write_file():
+def write_file(data):
     try:
         data.to_csv(FILE_NAME, index_label=COLUMN_URL_SHORT, encoding=ENCODING)
     except:
@@ -30,14 +30,14 @@ def write_file():
 
 
 def read_file():
-    global data
     data = pandas.read_csv(FILE_NAME, index_col=COLUMN_URL_SHORT, encoding=ENCODING, converters={COLUMN_OWNERS_LIST: literal_eval})
-    set_data_types()
+    set_data_types(data)
+    return data
 
 
 # На русском ли языке строка
-def is_russian(str):
-    for c in str:
+def is_russian(title):
+    for c in title:
         if 'а' <= c <= 'я' or 'А' <= c <= 'Я':
             return True
     return False
@@ -63,7 +63,7 @@ def create_name(name_main, name_other):
 
 
 # Заполняем столбец красивого имени на основании столбцов основного и дополнительных названий с Тесеры
-def parse_names():
+def parse_names(data):
     for row in data.iterrows():
         game_url = row[0]
         name_main = row[1][COLUMN_NAME_MAIN].strip()
@@ -72,14 +72,14 @@ def parse_names():
 
 
 # Заполняем столбец ссылок на игру на основе относительных ссылок, которые у нас используются в качестве индекса
-def parse_urls():
+def parse_urls(data):
     for row in data.iterrows():
         game_url = row[0]
         data.set_value(game_url, COLUMN_URL_FULL, URL_PREFIX + game_url)
 
 
 # Из списка владельцев делаем строку
-def parse_owners():
+def parse_owners(data):
     for row in data.iterrows():
         game_url = row[0]
         owners_string = ""
@@ -102,7 +102,7 @@ def parse_owners():
 
 
 # Для каждой игры берём ссылку на неё, идём по этой ссылке, получаем поля основного и дополнительного названий и заполняем их
-def update_names():
+def update_names(data):
     length = len(data)
     for row in data.iterrows():
         print('Records to go: ' + str(length))
@@ -120,8 +120,9 @@ def update_names():
 
         length -= 1
 
+
 # Загружаем список игр пользователя. Если игра уже есть в списке, добавляем нового владельца, иначе добавляем в список.
-def add_games(username):
+def add_games(data, username):
     url = URL_PREFIX + "/user/" + username + "/games/owns/all"
     connection = urllib.request.urlopen(url)
     response = connection.read()
@@ -141,11 +142,13 @@ def add_games(username):
             data.loc[link, COLUMN_OWNERS_LIST] = [username]
 
 
-# Вся информация об играх, умеем записывать/считывать её из файла, дополнять с тесеры и обрабатывать уже имеющиеся данные
-data = DataFrame(columns=(COLUMN_NAME, COLUMN_NAME_MAIN, COLUMN_NAME_OTHER, COLUMN_OWNERS_LIST, COLUMN_OWNERS, COLUMN_URL_FULL))
+def create_empty_dataframe():
+    data = DataFrame(columns=(COLUMN_NAME, COLUMN_NAME_MAIN, COLUMN_NAME_OTHER, COLUMN_OWNERS_LIST, COLUMN_OWNERS, COLUMN_URL_FULL))
+    set_data_types(data)
+    return data
 
 
-def set_data_types():
+def set_data_types(data):
     data[[COLUMN_NAME]] = data[[COLUMN_NAME]].astype(str)                   # название, которое больше нравится мне (производное поле)
     data[[COLUMN_NAME_MAIN]] = data[[COLUMN_NAME_MAIN]].astype(str)         # "основное название" с Тесеры
     data[[COLUMN_NAME_OTHER]] = data[[COLUMN_NAME_OTHER]].astype(str)       # "дополнительные названия" с Тесеры
@@ -154,22 +157,7 @@ def set_data_types():
     data[[COLUMN_URL_FULL]] = data[[COLUMN_URL_FULL]].astype(str)           # ссылка на профиль игры на Тесере
 
 
-set_data_types()
 
-# считывать начальные данные из файла или из профилей Тесеры
-online = False
-
-user_list = ["tigronok", "janlynn", "tatafrost", "bobrik", "anothersava", "eugene0", "ArranHawk", "Caleb", "Oxma", "x_master05", "vyatskiy", "ayouk", "ksedih", "Rapait", "Fox", "igelkott"]
-
-if online:
-    for user in user_list:
-        print("Loaging games list for: " + user)
-        add_games(user)
-else:
-    read_file()
-
-# Для каждой игры берём ссылку на неё, идём по этой ссылке, получаем поля основного и дополнительного названий и заполняем их
-#update_names()
 
 # Заполняем столбец красивого имени на основании столбцов основного и дополнительных названий с Тесеры
 #parse_names()
@@ -177,7 +165,5 @@ else:
 # Заполняем столбец ссылок на игру на основе относительных ссылок, которые у нас используются в качестве индекса
 #parse_urls()
 
-# Из списка владельцев делаем строку
-parse_owners()
 
-write_file()
+#write_file(data)
